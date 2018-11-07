@@ -32,6 +32,8 @@ import (
 	"github.com/knative/eventing/pkg/sidecar/fanout"
 	"go.uber.org/zap"
 	"net/http"
+
+	natss_f "github.com/knative/eventing/pkg/provisioners/natss/dispatcher/fanout"
 )
 
 // The configuration of this handler.
@@ -78,7 +80,8 @@ func NewHandler(logger *zap.Logger, conf Config) (*Handler, error) {
 
 	for _, cc := range conf.ChannelConfigs {
 		key := makeChannelKeyFromConfig(cc)
-		handler := fanout.NewHandler(logger, cc.FanoutConfig)
+		//handler := fanout.NewHandler(logger, cc.FanoutConfig)
+		handler := natss_f.NewHandler(logger, cc.FanoutConfig)
 		if _, present := handlers[key]; present {
 			logger.Error("Duplicate channel key", zap.String("channelKey", key))
 			return nil, fmt.Errorf("duplicate channel key: %v", key)
