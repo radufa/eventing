@@ -47,7 +47,7 @@ type Handler struct {
 	config Config
 
 	receivedMessages chan *forwardMessage
-	receiver         *buses.MessageReceiver
+	Receiver         *buses.MessageReceiver
 	dispatcher       *buses.MessageDispatcher
 
 	// TODO: Plumb context through the receiver and dispatcher and use that to store the timeout,
@@ -76,24 +76,24 @@ func NewHandler(logger *zap.Logger, config Config) *Handler {
 	}
 	// The receiver function needs to point back at the handler itself, so set it up after
 	// initialization.
-	handler.receiver = buses.NewMessageReceiver(createReceiverFunction(handler), logger.Sugar())
+	handler.Receiver = buses.NewMessageReceiver(createReceiverFunction(handler), logger.Sugar())
 
 	return handler
 }
 
 func createReceiverFunction(f *Handler) func(buses.ChannelReference, *buses.Message) error {
 	return func(_ buses.ChannelReference, m *buses.Message) error {
-		return f.dispatch(m)
+		return f.Dispatch(m)
 	}
 }
 
 func (f *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f.receiver.HandleRequest(w, r)
+	f.Receiver.HandleRequest(w, r)
 }
 
 // dispatch takes the request, fans it out to each subscription in f.config. If all the fanned out
 // requests return successfully, then return nil. Else, return an error.
-func (f *Handler) dispatch(msg *buses.Message) error {
+func (f *Handler) Dispatch(msg *buses.Message) error {
 	errorCh := make(chan error, len(f.config.Subscriptions))
 	for _, sub := range f.config.Subscriptions {
 		go func(s eventingduck.ChannelSubscriberSpec) {
