@@ -30,7 +30,7 @@ import (
 
 	"github.com/knative/eventing/pkg/provisioners/natss/stanutil"
 //	"github.com/knative/eventing/pkg/buses/natss"
-	"github.com/knative/eventing/pkg/provisioners/natss/clusterchannelprovisioner"
+	"github.com/knative/eventing/pkg/provisioners/natss/controller/clusterchannelprovisioner"
 //	"os"
 //	"github.com/knative/eventing/pkg/controller/bus"
 	stan "github.com/nats-io/go-nats-streaming"
