@@ -29,10 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"github.com/knative/eventing/pkg/provisioners"
 )
 
 const (
@@ -95,7 +95,7 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		// regardless of the error.
 	}
 
-	if updateStatusErr := r.updateChannel(ctx, c); updateStatusErr != nil {
+	if updateStatusErr := provisioners.UpdateChannel(ctx, r.client, c); updateStatusErr != nil {
 		logger.Info("Error updating Channel Status", zap.Error(updateStatusErr))
 		return reconcile.Result{}, updateStatusErr
 	}
@@ -126,50 +126,6 @@ func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel)
 		return err
 	}
 
-	if c.DeletionTimestamp != nil {
-		// K8s garbage collection will delete the K8s service and VirtualService for this channel.
-		// We use a finalizer to ensure the channel config has been synced.
-		r.removeFinalizer(c)
-		return nil
-	}
-
-	r.addFinalizer(c)
-
-	return nil
-}
-
-func (r *reconciler) addFinalizer(c *eventingv1alpha1.Channel) {
-	finalizers := sets.NewString(c.Finalizers...)
-	finalizers.Insert(finalizerName)
-	c.Finalizers = finalizers.List()
-}
-
-func (r *reconciler) removeFinalizer(c *eventingv1alpha1.Channel) {
-	finalizers := sets.NewString(c.Finalizers...)
-	finalizers.Delete(finalizerName)
-	c.Finalizers = finalizers.List()
-}
-
-func (r *reconciler) updateChannel(ctx context.Context, u *eventingv1alpha1.Channel) error {
-	o := &eventingv1alpha1.Channel{}
-	if err := r.client.Get(ctx, client.ObjectKey{Namespace: u.Namespace, Name: u.Name}, o); err != nil {
-		r.logger.Info("Error getting Channel for status update", zap.Error(err), zap.Any("updatedChannel", u))
-		return err
-	}
-
-	updated := false
-	if !equality.Semantic.DeepEqual(o.Finalizers, u.Finalizers) {
-		updated = true
-		o.SetFinalizers(u.Finalizers)
-	}
-	if !equality.Semantic.DeepEqual(o.Status, u.Status) {
-		updated = true
-		o.Status = u.Status
-	}
-
-	if updated {
-		return r.client.Update(ctx, o)
-	}
 	return nil
 }
 
