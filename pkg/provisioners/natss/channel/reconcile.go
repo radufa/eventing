@@ -22,9 +22,6 @@ import (
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	"github.com/knative/eventing/pkg/controller"
 	ccpcontroller "github.com/knative/eventing/pkg/provisioners/natss/clusterchannelprovisioner"
-//	"github.com/knative/eventing/pkg/sidecar/configmap"
-//	"github.com/knative/eventing/pkg/sidecar/fanout"
-//	"github.com/knative/eventing/pkg/sidecar/multichannelfanout"
 	"github.com/knative/eventing/pkg/system"
 	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
 	"go.uber.org/zap"
@@ -125,15 +122,7 @@ func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel)
 	// We are syncing three things:
 	// 1. The K8s Service to talk to this Channel.
 	// 2. The Istio VirtualService to talk to this Channel.
-	// 3. The configuration of all Channel subscriptions.
 
-	// We always need to sync the Channel config, so do it first.
-	/*
-	if err := r.syncChannelConfig(ctx); err != nil {
-		logger.Info("Error updating syncing the Channel config", zap.Error(err))
-		return err
-	}
-	*/
 	if c.DeletionTimestamp != nil {
 		// K8s garbage collection will delete the K8s service and VirtualService for this channel.
 		// We use a finalizer to ensure the channel config has been synced.
@@ -333,106 +322,3 @@ func (r *reconciler) updateChannel(ctx context.Context, u *eventingv1alpha1.Chan
 	}
 	return nil
 }
-/*
-func (r *reconciler) syncChannelConfig(ctx context.Context) error {
-	channels, err := r.listAllChannels(ctx)
-	if err != nil {
-		r.logger.Info("Unable to list channels", zap.Error(err))
-		return err
-	}
-	config := multiChannelFanoutConfig(channels)  // TODO change it to update NATSS subscriptions
-	return r.writeConfigMap(ctx, config)
-}
-
-func (r *reconciler) writeConfigMap(ctx context.Context, config *multichannelfanout.Config) error {
-	logger := r.logger.With(zap.Any("configMap", r.configMapKey))
-
-	updated, err := configmap.SerializeConfig(*config)
-	if err != nil {
-		r.logger.Error("Unable to serialize config", zap.Error(err), zap.Any("config", config))
-		return err
-	}
-
-	cm := &corev1.ConfigMap{}
-	err = r.client.Get(ctx, r.configMapKey, cm)
-	if errors.IsNotFound(err) {
-		cm = r.createNewConfigMap(updated)
-		err = r.client.Create(ctx, cm)
-	}
-	if err != nil {
-		logger.Info("Unable to get/create ConfigMap", zap.Error(err))
-		return err
-	}
-
-	if equality.Semantic.DeepEqual(cm.Data, updated) {
-		// Nothing to update.
-		return nil
-	}
-
-	cm.Data = updated
-	return r.client.Update(ctx, cm)
-}
-
-func (r *reconciler) createNewConfigMap(data map[string]string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: r.configMapKey.Namespace,
-			Name:      r.configMapKey.Name,
-		},
-		Data: data,
-	}
-}
-
-// TODO must be changed, to add subscriptions into NATSS
-func multiChannelFanoutConfig(channels []eventingv1alpha1.Channel) *multichannelfanout.Config {
-	cc := make([]multichannelfanout.ChannelConfig, 0)
-	for _, c := range channels {
-		channelConfig := multichannelfanout.ChannelConfig{
-			Namespace: c.Namespace,
-			Name:      c.Name,
-		}
-		if c.Spec.Subscribable != nil {
-
-			channelConfig.FanoutConfig = fanout.Config{
-				Subscriptions: c.Spec.Subscribable.Subscribers,
-			}
-		}
-		cc = append(cc, channelConfig)
-	}
-	return &multichannelfanout.Config{
-		ChannelConfigs: cc,
-	}
-}
-
-func (r *reconciler) listAllChannels(ctx context.Context) ([]eventingv1alpha1.Channel, error) {
-	channels := make([]eventingv1alpha1.Channel, 0)
-
-	opts := &client.ListOptions{
-		// TODO this is here because the fake client needs it. Remove this when it's no longer
-		// needed.
-		Raw: &metav1.ListOptions{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: eventingv1alpha1.SchemeGroupVersion.String(),
-				Kind:       "Channel",
-			},
-		},
-	}
-	for {
-		cl := &eventingv1alpha1.ChannelList{}
-		if err := r.client.List(ctx, opts, cl); err != nil {
-			return nil, err
-		}
-
-		for _, c := range cl.Items {
-			if r.shouldReconcile(&c) {
-				channels = append(channels, c)
-			}
-		}
-		if cl.Continue != "" {
-			opts.Raw.Continue = cl.Continue
-		} else {
-			return channels, nil
-		}
-	}
-}
-*/

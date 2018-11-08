@@ -118,8 +118,6 @@ func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel)
 	c.Status.InitializeConditions()
 
 	// We are syncing three things:
-	// 1. The K8s Service to talk to this Channel.
-	// 2. The Istio VirtualService to talk to this Channel.
 	// 3. The configuration of all Channel subscriptions.
 
 	// We always need to sync the Channel config, so do it first.
