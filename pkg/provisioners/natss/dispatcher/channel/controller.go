@@ -19,9 +19,7 @@ package channel
 import (
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	"github.com/knative/eventing/pkg/system"
-	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -61,6 +59,15 @@ func ProvideController(mgr manager.Manager, logger *zap.Logger) (controller.Cont
 	})
 	if err != nil {
 		logger.Error("Unable to create controller.", zap.Error(err))
+		return nil, err
+	}
+
+	// Watch Channels.
+	err = c.Watch(&source.Kind{
+		Type: &eventingv1alpha1.Channel{},
+	}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		logger.Error("Unable to watch Channels.", zap.Error(err), zap.Any("type", &eventingv1alpha1.Channel{}))
 		return nil, err
 	}
 

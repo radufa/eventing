@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
-	"github.com/knative/eventing/pkg/provisioners/natss/channel"
+	"github.com/knative/eventing/pkg/provisioners/natss/dispatcher/channel"
 	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
 	"github.com/knative/pkg/signals"
 	"go.uber.org/zap"
