@@ -79,10 +79,11 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		logger.Info("Not reconciling Channel, it is not controlled by this Controller", zap.Any("ref", c.Spec))
 		return reconcile.Result{}, nil
 	}
-	logger.Info("Reconciling Channel")
+	logger.Sugar().Infof("Reconciling Channel: %+v", c)
 
 	// Modify a copy, not the original.
 	c = c.DeepCopy()
+	logger.Sugar().Infof("Start reconciling Channel: %+v", c)
 
 	err = r.reconcile(ctx, c)
 	if err != nil {
@@ -146,6 +147,6 @@ func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel)
 		logger.Warn("VirtualService not owned by Channel", zap.Any("channel", c), zap.Any("virtualService", virtualService))
 	}
 
-	c.Status.MarkProvisioned()
+//	c.Status.MarkProvisioned()
 	return nil
 }

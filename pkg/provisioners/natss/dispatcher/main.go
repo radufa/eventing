@@ -1,10 +1,10 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+//	"flag"
+//	"fmt"
 	"log"
-	"net/http"
+//	"net/http"
 	"time"
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	"github.com/knative/eventing/pkg/provisioners/natss/dispatcher/channel"
@@ -13,21 +13,22 @@ import (
 	"go.uber.org/zap"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"github.com/knative/eventing/pkg/sidecar/swappable"
-	"github.com/knative/eventing/pkg/sidecar/configmap/filesystem"
-	"github.com/knative/eventing/pkg/sidecar/configmap/watcher"
-	"github.com/knative/eventing/pkg/system"
+//	"github.com/knative/eventing/pkg/sidecar/swappable"
+//	"github.com/knative/eventing/pkg/sidecar/configmap/filesystem"
+//	"github.com/knative/eventing/pkg/sidecar/configmap/watcher"
+//	"github.com/knative/eventing/pkg/system"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/kubernetes"
-	"strings"
+//	"k8s.io/client-go/kubernetes"
+//	"strings"
+	"github.com/knative/eventing/pkg/provisioners/natss/dispatcher/dispatcher"
 )
 
 const (
 	defaultConfigMapName = "natss-dispatcher-config-map"
 
 	// The following are the only valid values of the config_map_noticer flag.
-	cmnfVolume  = "volume"
-	cmnfWatcher = "watcher"
+//	cmnfVolume  = "volume"
+//	cmnfWatcher = "watcher"
 )
 
 var (
@@ -39,16 +40,16 @@ var (
 	configMapNamespace string
 	configMapName      string
 )
-
+/*
 func init() {
 	flag.IntVar(&port, "sidecar_port", -1, "The port to run the sidecar on.")
 	flag.StringVar(&configMapNoticer, "config_map_noticer", "", fmt.Sprintf("The system to notice changes to the ConfigMap. Valid values are: %s", configMapNoticerValues()))
 	flag.StringVar(&configMapNamespace, "config_map_namespace", system.Namespace, "The namespace of the ConfigMap that is watched for configuration.")
 	flag.StringVar(&configMapName, "config_map_name", defaultConfigMapName, "The name of the ConfigMap that is watched for configuration.")
 }
-
+*/
 func main() {
-	flag.Parse()
+//	flag.Parse()
 
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -69,7 +70,8 @@ func main() {
 		logger.Fatal("Unable to create Channel controller", zap.Error(err))
 	}
 
-	sh, err := swappable.NewEmptyHandler(logger)
+/*
+	sh, err := swappable.NewEmptyHandler(logger)  // TODO remove this...
 	if err != nil {
 		logger.Fatal("Unable to create swappable.Handler", zap.Error(err))
 	}
@@ -86,16 +88,18 @@ func main() {
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}
-
+*/
 	// Start both the manager (which notices ConfigMap changes) and the HTTP server.
 	stopCh := signals.SetupSignalHandler()
 	var g errgroup.Group
+/*
 	g.Go(func() error {
 		// Start blocks forever, so run it in a goroutine.
 		return mgr1.Start(stopCh)
 	})
 	logger.Info("Dispatcher sidecar Listening...", zap.String("Address", s.Addr))
 	g.Go(s.ListenAndServe)
+*/
 
 	/*
 	err = g.Wait()
@@ -111,6 +115,17 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	//stopCh := signals.SetupSignalHandler()
 
+	logger.Info("Dispatcher starting...")
+	dispatcher, err := dispatcher.NewDispatcher(logger)
+	if err != nil {
+		logger.Fatal("unable to create NATSS dispatcher.", zap.Error(err))
+	}
+
+	g.Go(func() error {
+		// Setups message receiver and blocks
+		return dispatcher.Start(stopCh)
+	})
+
 
 	logger.Info("Dispatcher controller starting...")
 	// Start blocks forever.
@@ -119,7 +134,7 @@ func main() {
 		logger.Fatal("Manager.Start() returned an error", zap.Error(err))
 	}
 }
-
+/*
 func configMapNoticerValues() string {
 	return strings.Join([]string{cmnfVolume, cmnfWatcher}, ", ")
 }
@@ -170,3 +185,4 @@ func setupConfigMapWatcher(logger *zap.Logger, mgr manager.Manager, configUpdate
 	mgr.Add(cmw)
 	return nil
 }
+*/

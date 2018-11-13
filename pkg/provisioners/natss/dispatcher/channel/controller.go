@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	dispatcher "github.com/knative/eventing/pkg/provisioners/natss/dispatcher/dispatcher"
 )
 
 const (
@@ -48,11 +50,12 @@ var (
 // ProvideController returns a Controller that represents the NATSS Provisioner.
 func ProvideController(mgr manager.Manager, logger *zap.Logger) (controller.Controller, error) {
 	// Setup a new controller to Reconcile Channels that belong to this Cluster Provisioner
-	// (in-memory channels).
+	ss, _ := dispatcher.NewDispatcher(logger)
 	r := &reconciler{
 		configMapKey: defaultConfigMapKey,
 		recorder:     mgr.GetRecorder(controllerAgentName),
 		logger:       logger,
+		subscriptionsSupervisor: ss,
 	}
 	c, err := controller.New(controllerAgentName, mgr, controller.Options{
 		Reconciler: r,

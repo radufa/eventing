@@ -19,7 +19,7 @@ limitations under the License.
 // single Knative Channel.
 // It will normally be used in conjunction with multichannelfanout.Handler, which contains multiple
 // fanout.Handlers, each corresponding to a single Knative Channel.
-package fanout
+package dispatcher
 
 import (
 	"time"

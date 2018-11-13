@@ -18,21 +18,16 @@ package channel
 
 import (
 	"context"
-
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	ccpcontroller "github.com/knative/eventing/pkg/provisioners/natss/controller/clusterchannelprovisioner"
-	"github.com/knative/eventing/pkg/sidecar/configmap"
-	"github.com/knative/eventing/pkg/sidecar/fanout"
-	"github.com/knative/eventing/pkg/sidecar/multichannelfanout"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"github.com/knative/eventing/pkg/provisioners"
+	dispatcher "github.com/knative/eventing/pkg/provisioners/natss/dispatcher/dispatcher"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"github.com/knative/eventing/pkg/provisioners"
 )
 
 const (
@@ -47,6 +42,8 @@ type reconciler struct {
 	logger   *zap.Logger
 
 	configMapKey client.ObjectKey
+
+	subscriptionsSupervisor *dispatcher.SubscriptionsSupervisor
 }
 
 // Verify the struct implements reconcile.Reconciler
@@ -58,6 +55,8 @@ func (r *reconciler) InjectClient(c client.Client) error {
 }
 
 func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	r.logger.Info("request:" + request.String())
+
 	// TODO: use this to store the logger and set a deadline
 	ctx := context.TODO()
 	logger := r.logger.With(zap.Any("request", request))
@@ -83,7 +82,7 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		logger.Info("Not reconciling Channel, it is not controlled by this Controller", zap.Any("ref", c.Spec))
 		return reconcile.Result{}, nil
 	}
-	logger.Info("Reconciling Channel:" + c.Name +"." + c.Namespace)
+	logger.Sugar().Infof("Reconciling Channel: %+v", c)
 
 	// Modify a copy, not the original.
 	c = c.DeepCopy()
@@ -103,8 +102,6 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, err
 }
 
-// shouldReconcile determines if this Controller should control (and therefore reconcile) a given
-// ClusterChannelProvisioner. This Controller only handles in-memory channels.
 func (r *reconciler) shouldReconcile(c *eventingv1alpha1.Channel) bool {
 	if c.Spec.Provisioner != nil {
 		return ccpcontroller.IsControlled(c.Spec.Provisioner)
@@ -113,6 +110,8 @@ func (r *reconciler) shouldReconcile(c *eventingv1alpha1.Channel) bool {
 }
 
 func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel) error {
+	r.logger.Info("channel:" +  c.Name + "." + c.Namespace)
+
 	logger := r.logger.With(zap.Any("channel", c))
 
 	c.Status.InitializeConditions()
@@ -121,24 +120,52 @@ func (r *reconciler) reconcile(ctx context.Context, c *eventingv1alpha1.Channel)
 	// 3. The configuration of all Channel subscriptions.
 
 	// We always need to sync the Channel config, so do it first.
-	if err := r.syncChannelConfig(ctx); err != nil {
+	if err := r.syncChannel(ctx); err != nil {
 		logger.Info("Error updating syncing the Channel config", zap.Error(err))
 		return err
 	}
+	r.logger.Info("Leave")
 
+	c.Status.MarkProvisioned()
 	return nil
 }
 
-func (r *reconciler) syncChannelConfig(ctx context.Context) error {
+func (r *reconciler) syncChannel(ctx context.Context) error {
+	r.logger.Info("Entry")
+
 	channels, err := r.listAllChannels(ctx)
 	if err != nil {
 		r.logger.Info("Unable to list channels", zap.Error(err))
 		return err
 	}
-	config := multiChannelFanoutConfig(channels)  // TODO change it to update NATSS subscriptions
-	return r.writeConfigMap(ctx, config)
-}
 
+//	config := multiChannelFanoutConfig(channels)  // TODO change it to update NATSS subscriptions
+//	r.logger.Sugar().Infof("config: %+v", config)
+//	return r.writeConfigMap(ctx, config)
+
+// try to subscribe
+	for _, c := range channels {
+		r.logger.Info("channel:" + c.Name + "." + c.Namespace)
+
+		r.subscriptionsSupervisor.UpdateSubscriptions(c)
+		/*
+		r.subscriptionsSupervisor.UpdateSubscriptions(c)
+		cRef := buses.NewChannelReferenceFromNames(c.Name, c.Namespace)
+		r.logger.Sugar().Infof("channel: %+v", c)
+		r.logger.Sugar().Infof("subscriptions: %+v", c.Spec.Subscribable)
+		if c.Spec.Subscribable != nil {
+			for _, s := range c.Spec.Subscribable.Subscribers {
+				r.subscriptionsSupervisor.Subscribe2(cRef, s)
+			}
+		}
+		*/
+	}
+
+	r.logger.Info("Leave")
+	return nil
+
+}
+/*
 func (r *reconciler) writeConfigMap(ctx context.Context, config *multichannelfanout.Config) error {
 	logger := r.logger.With(zap.Any("configMap", r.configMapKey))
 
@@ -198,7 +225,7 @@ func multiChannelFanoutConfig(channels []eventingv1alpha1.Channel) *multichannel
 		ChannelConfigs: cc,
 	}
 }
-
+*/
 func (r *reconciler) listAllChannels(ctx context.Context) ([]eventingv1alpha1.Channel, error) {
 	channels := make([]eventingv1alpha1.Channel, 0)
 

@@ -33,7 +33,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 
-	natss_f "github.com/knative/eventing/pkg/provisioners/natss/dispatcher/fanout"
+	natss_f "github.com/knative/eventing/pkg/provisioners/natss/dispatcher/dispatcher"
 )
 
 // The configuration of this handler.
